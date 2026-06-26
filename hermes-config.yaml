@@ -1,0 +1,116 @@
+# =============================================================================
+# hermes-config.yaml — Configuration for run_hermes_config.sh
+# =============================================================================
+# Copy this file, fill in your values, and run:
+#   ./run_hermes_config.sh
+# or:
+#   ./run_hermes_config.sh path/to/my-config.yaml
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Messaging Gateways — at least ONE of telegram or whatsapp must be configured
+# ---------------------------------------------------------------------------
+
+# ── Telegram ──────────────────────────────────────────────────────────────────
+telegram:
+  # Bot API token from @BotFather (t.me/BotFather)
+  # Leave bot_token empty to disable the Telegram gateway.
+  bot_token: ""
+
+  # Numeric Telegram user IDs allowed to chat with the bot.
+  # Find yours by messaging @userinfobot on Telegram.
+  # Can be a list or a comma-separated string.
+  allowed_users:
+    - ""
+    # - "987654321"
+    # - "111222333"
+
+# ── WhatsApp (Baileys bridge — personal account, QR scan required) ─────────────
+# See: https://hermes-agent.nousresearch.com/docs/user-guide/messaging/whatsapp
+# IMPORTANT: First run will display a QR code — scan it with WhatsApp on your
+# phone (Settings → Linked Devices → Link a Device). Session is then persisted
+# in hermes-data/ and subsequent restarts will NOT require rescanning.
+# NOTE: Node.js v18+ is installed automatically inside the container.
+whatsapp:
+  # Set enabled: true and fill in allowed_users to activate WhatsApp gateway.
+  enabled: false
+
+  # "bot" = separate phone number acting as the bot (recommended)
+  # "self-chat" = receive messages sent to yourself (your own number)
+  mode: "bot"
+
+  # Phone numbers allowed to chat with the bot.
+  # Format: country code + number, NO leading '+'
+  # e.g. "15551234567" for US +1 (555) 123-4567
+  # Use "*" to allow everyone.
+  allowed_users:
+    - ""  # e.g. "61412345678" for Australian +61 412 345 678
+
+# ---------------------------------------------------------------------------
+# Model (required)
+# Format: "provider:model-name"
+# ---------------------------------------------------------------------------
+model: "google:gemini-3.5-flash"
+
+# Common model strings:
+#
+#  Gemini 3.x (current, Google AI Studio key required):
+#    google:gemini-3.5-flash            — best for agentic tasks (stable)
+#    google:gemini-3.1-flash-lite       — fastest / cheapest (stable)
+#    google:gemini-3.1-pro              — flagship reasoning (preview)
+#
+#  Gemini 2.5 (previous gen, still available):
+#    google:gemini-2.5-flash            — great price-performance (stable)
+#    google:gemini-2.5-pro              — most advanced 2.5 (stable)
+#
+#  Local models (LM Studio / Ollama):
+#    lmstudio:your-model-name
+#    ollama:llama3
+#
+#  OpenRouter (200+ models):
+#    openrouter:google/gemini-2.5-flash-preview
+#    openrouter:anthropic/claude-sonnet-4-5
+#
+#  OpenAI:
+#    openai:gpt-4o
+
+# ---------------------------------------------------------------------------
+# API Keys — fill in only the key for your chosen provider
+# ---------------------------------------------------------------------------
+api_keys:
+  # Google AI Studio → https://aistudio.google.com/app/apikey
+  google: ""
+
+  # OpenAI → https://platform.openai.com/api-keys
+  openai: ""
+
+  # OpenRouter → https://openrouter.ai/keys
+  openrouter: ""
+
+  # Anthropic → https://console.anthropic.com/
+  anthropic: ""
+
+# ---------------------------------------------------------------------------
+# Local model settings (only relevant when using lmstudio / ollama / etc.)
+# ---------------------------------------------------------------------------
+local_model:
+  # Base URL of the OpenAI-compatible local server.
+  # host.docker.internal resolves to the host machine from inside the container.
+  base_url: "" #http://host.docker.internal:1234/v1"
+
+  # Override if Ollama runs on a non-default port
+  ollama_url: ""
+
+# ---------------------------------------------------------------------------
+# Docker settings
+# ---------------------------------------------------------------------------
+docker:
+  # Name of the Docker container
+  container_name: "hermes-agent"
+
+  # Host directory that is mounted into the container as /root/.hermes.
+  # Memories, skills, and config persist here across restarts.
+  data_dir: "./hermes-data"
+
+  # Docker image to use. Override only if you need a specific Python version.
+  image: "python:3.12-slim"
