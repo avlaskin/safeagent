@@ -68,6 +68,13 @@ TEMPLATE
     exit 0
 fi
 
+# ── --model: run interactive model configurator ───────────────────────────────
+if [[ "${1:-}" == "--model" ]]; then
+    info "Launching interactive model configurator..."
+    exec docker run --rm -it -v "$(pwd)/hermes-data:/root/.hermes" hermes-agent:local hermes model
+    exit 0
+fi
+
 # ── Locate config file ─────────────────────────────────────────────────────────
 CONFIG_FILE=""
 if [[ -n "${1:-}" ]]; then
@@ -161,7 +168,21 @@ cleaned_wa    = [u for u in wa_users_raw.split(",") if u.strip() and u.strip() n
 whatsapp_ok   = bool(wa_enabled)
 
 # ── Model
-model         = get(cfg, "model")
+model_val     = get(cfg, "model")
+lm_base_url_from_model = None
+if isinstance(model_val, dict):
+    provider = model_val.get("provider", "")
+    default_m = model_val.get("default", "")
+    model = f"{provider}:{default_m}" if provider and default_m else default_m
+    # Only use base_url as LM_BASE_URL for local/custom providers.
+    # Cloud providers (google, openai, anthropic, openrouter) handle their
+    # own routing — setting OPENAI_BASE_URL would break them.
+    cloud_providers = {"google", "openai", "anthropic", "openrouter"}
+    if model_val.get("base_url") and provider not in cloud_providers:
+        lm_base_url_from_model = model_val.get("base_url")
+else:
+    model = str(model_val)
+
 
 if not telegram_ok and not whatsapp_ok:
     errors.append("At least one gateway must be configured:")
@@ -186,6 +207,8 @@ openai_key     = get(cfg, "api_keys", "openai")
 openrouter_key = get(cfg, "api_keys", "openrouter")
 anthropic_key  = get(cfg, "api_keys", "anthropic")
 lm_base_url    = get(cfg, "local_model", "base_url")  # empty string if not set
+if not lm_base_url and 'lm_base_url_from_model' in globals() and lm_base_url_from_model:
+    lm_base_url = lm_base_url_from_model
 ollama_url     = get(cfg, "local_model", "ollama_url")
 container_name = get(cfg, "docker", "container_name", default="hermes-agent")
 data_dir       = get(cfg, "docker", "data_dir", default="./hermes-data")
@@ -253,13 +276,9 @@ DOCKER_ARGS=(
     --interactive
     --tty
 
-    # Explicit bridge network + public DNS so the container can reach
-    # api.telegram.org. Without this, the bridge network inherits the host's
-    # /etc/resolv.conf which may contain 127.0.0.1 — unreachable from inside
-    # the container — causing "Bad Gateway" / DNS resolution failures.
-    --network bridge
-    --dns 8.8.8.8
-    --dns 8.8.4.4
+    # Use host network so the container inherits the host's DNS resolution
+    # and routing properly, avoiding issues with local VPNs or stub resolvers
+    --network host
 
     -v "${HERMES_DATA_DIR}:/root/.hermes"
     --add-host "host.docker.internal:host-gateway"
@@ -294,6 +313,15 @@ fi
 [[ -n "${ANTHROPIC_API_KEY:-}"  ]] && DOCKER_ARGS+=(-e "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}")
 [[ -n "${OLLAMA_BASE_URL:-}"    ]] && DOCKER_ARGS+=(-e "OLLAMA_BASE_URL=${OLLAMA_BASE_URL}")
 
+# ── Verify Docker Network ──────────────────────────────────────────────────────
+step "Verifying network connectivity from within Docker…"
+if ! docker run --rm --network host "${DOCKER_IMAGE}" python3 -c 'import urllib.request; urllib.request.urlopen("https://www.google.com", timeout=5)' 2>/dev/null; then
+    error "Network check failed! The container cannot reach the internet."
+    error "Please check your network connection, VPN, or Docker configuration."
+    error "(If you haven't built the local image yet, run ./build_docker.sh first)"
+    exit 1
+fi
+
 # ── Summary ────────────────────────────────────────────────────────────────────
 echo ""
 info "Starting Hermes Agent"
@@ -306,35 +334,12 @@ info "  Model     : ${HERMES_MODEL}"
 info "  Data dir  : ${HERMES_DATA_DIR}"
 echo ""
 
-# ── Run ────────────────────────────────────────────────────────────────────────
-exec docker run "${DOCKER_ARGS[@]}" \
-    "${DOCKER_IMAGE}" \
-    bash -c '
-        set -euo pipefail
-
-        echo "[setup] Installing system dependencies…"
-        # Node.js v18+ is required by the WhatsApp Baileys bridge.
-        DEBIAN_FRONTEND=noninteractive apt-get update -qq \
-            && apt-get install -y -qq --no-install-recommends curl git nodejs npm > /dev/null 2>&1
-        # Upgrade to Node 18 if apt provided an older version
-        node_major=$(node --version 2>/dev/null | cut -d. -f1 | tr -dc '0-9' || echo 0)
-        if [[ "${node_major}" -lt 18 ]]; then
-            curl -fsSL https://deb.nodesource.com/setup_20.x | bash - > /dev/null 2>&1
-            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nodejs > /dev/null 2>&1
-        fi
-
-        echo "[setup] Installing hermes-agent with messaging extras…"
-        pip install --quiet --upgrade pip
-        pip install --quiet "hermes-agent[messaging,google,cli,web]"
-        pip install --quiet playwright   # ensure playwright module is present
-
-        echo "[setup] Installing Chromium browser for web tools…"
-        DEBIAN_FRONTEND=noninteractive python -m playwright install --with-deps chromium
-        echo "[setup] Chromium installed."
-
-        echo "[setup] Writing ~/.hermes/.env from environment…"
-        mkdir -p /root/.hermes
-        cat > /root/.hermes/.env <<ENV
+echo "[setup] Writing ${HERMES_DATA_DIR}/.env from configuration…"
+if [[ -f "${HERMES_DATA_DIR}/.env" ]] && [[ ! -w "${HERMES_DATA_DIR}/.env" ]]; then
+    warn "The .env file is locked by root. Fixing permissions automatically..."
+    docker run --rm -v "$(cd "${HERMES_DATA_DIR}" && pwd):/data" "${DOCKER_IMAGE}" chown $(id -u):$(id -g) /data/.env 2>/dev/null || true
+fi
+cat > "${HERMES_DATA_DIR}/.env" <<ENV
 # Auto-generated by run_hermes_config.sh — do not edit manually
 ${TELEGRAM_BOT_TOKEN:+TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}}
 ${TELEGRAM_ALLOWED_USERS:+TELEGRAM_ALLOWED_USERS=${TELEGRAM_ALLOWED_USERS}}
@@ -351,7 +356,11 @@ ${ANTHROPIC_API_KEY:+ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}}
 ${OLLAMA_BASE_URL:+OLLAMA_BASE_URL=${OLLAMA_BASE_URL}}
 ENV
 
-        echo "[setup] Done. Starting Hermes gateway…"
-        echo ""
-        exec hermes gateway
-    '
+echo "[setup] Starting Hermes gateway in container ${CONTAINER_NAME}…"
+echo ""
+
+# ── Run ────────────────────────────────────────────────────────────────────────
+exec docker run "${DOCKER_ARGS[@]}" \
+    "${DOCKER_IMAGE}" \
+    hermes gateway
+
