@@ -1,2 +1,2 @@
 #!/bin/bash
-docker build . -t hermes-agent:local
+docker build . -t hermes-agent
