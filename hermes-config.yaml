@@ -50,7 +50,7 @@ whatsapp:
 # Model (required)
 # Format: "provider:model-name"
 # ---------------------------------------------------------------------------
-model: "google:gemini-3.5-flash"
+model: "gemini:gemini-flash-latest"
 
 # Common model strings:
 #
