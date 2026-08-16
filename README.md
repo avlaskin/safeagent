@@ -112,7 +112,8 @@ api_keys:
 ## Step 3 — Start
 
 ```bash
-chmod +x run_hermes_config.sh stop_hermes.sh   # first time only
+chmod +x run_hermes_config.sh stop_hermes.sh build_docker.sh  # first time only
+./build_docker.sh
 ./run_hermes_config.sh
 ```
 
