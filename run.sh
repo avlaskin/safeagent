@@ -16,6 +16,8 @@
 
 set -euo pipefail
 
+echo "Starting..." > run.log
+
 # ── Colour helpers ─────────────────────────────────────────────────────────────
 RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; NC='\033[0m'
 info()  { echo -e "${GREEN}[hermes]${NC} $*"; }
@@ -120,6 +122,8 @@ case "$OSTYPE" in
   *)                    OS_TYPE="unknown" ;;
 esac
 
+echo "$(date '+%Y-%m-%d %H:%M:%S') [INFO] Detected OS: $OS_TYPE" >> run.log
+
 PYTHON_CMD="python3"
 if [[ "$OS_TYPE" == "windows" ]]; then
     PYTHON_CMD="python"
@@ -129,6 +133,19 @@ if ! command -v "$PYTHON_CMD" &>/dev/null; then
     echo "Python ($PYTHON_CMD) is not installed on this $OS_TYPE system." >> run.log
     error "$PYTHON_CMD is required to parse the config file but was not found in PATH"
     exit 1
+fi
+
+if ! "$PYTHON_CMD" -c "import yaml" &>/dev/null; then
+    info "PyYAML is not installed. Attempting to install it..."
+    echo "Installing missing PyYAML" >> run.log
+    if ! "$PYTHON_CMD" -m pip --version &>/dev/null; then
+        info "pip is not installed. Attempting to bootstrap it..."
+        "$PYTHON_CMD" -m ensurepip || true
+    fi
+    if ! "$PYTHON_CMD" -m pip install pyyaml 2>/dev/null; then
+        info "Standard install failed, trying with --break-system-packages..."
+        "$PYTHON_CMD" -m pip install pyyaml --break-system-packages >/dev/null 2>&1 || warn "Could not install PyYAML automatically."
+    fi
 fi
 
 # ── Parse config with Python (handles both YAML and JSON) ─────────────────────
