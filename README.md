@@ -14,8 +14,9 @@ Both can run simultaneously against different numbers/bots.
 | File | Purpose |
 |---|---|
 | `hermes-config.yaml` | All configuration (tokens, model, keys, Docker settings) |
-| `run_hermes_config.sh` | Start the agent |
-| `stop_hermes.sh` | Stop the agent |
+| `build.sh`| Build the docker container |
+| `run.sh` | Start the agent |
+| `stop.sh` | Stop the agent |
 
 ---
 
@@ -75,13 +76,9 @@ Edit the `model:` field in `hermes-config.yaml`.
 
 | Model | `model:` value | Status | Notes |
 |---|---|---|---|
-| Gemini 3.5 Flash | `google:gemini-3.5-flash` | ✅ Stable | Best for agentic/coding — recommended default |
+| Gemini 3.7 Flash | `google:gemini-3.7-flash` | ✅ Stable | Best for agentic/coding — recommended default |
 | Gemini 3.1 Flash-Lite | `google:gemini-3.1-flash-lite` | ✅ Stable | Fastest & cheapest |
 | Gemini 3.1 Pro | `google:gemini-3.1-pro` | 🔬 Preview | Flagship reasoning, 2M token context |
-| Gemini 2.5 Flash | `google:gemini-2.5-flash` | ✅ Stable | Previous gen, still excellent |
-| Gemini 2.5 Pro | `google:gemini-2.5-pro` | ✅ Stable | Most advanced 2.5 model |
-
-> **⚠️** `gemini-2.0-flash` was shut down June 1, 2026 — use `gemini-2.5-flash` or newer.
 
 **Local model (LM Studio / Ollama)**
 
@@ -113,8 +110,8 @@ api_keys:
 
 ```bash
 chmod +x run_hermes_config.sh stop_hermes.sh build_docker.sh  # first time only
-./build_docker.sh
-./run_hermes_config.sh
+./build.sh
+./run.sh
 ```
 
 On first run the script will:
@@ -131,7 +128,7 @@ On first run the script will:
 ## Step 4 — Stop
 
 ```bash
-./stop_hermes.sh
+./stop.sh
 ```
 
 Or press `Ctrl-C` in the terminal where the agent is running.
