@@ -101,16 +101,30 @@ fi
 
 info "Using config: $CONFIG_FILE"
 
-# ── Require python3 ────────────────────────────────────────────────────────────
-if ! command -v python3 &>/dev/null; then
-    error "python3 is required to parse the config file but was not found in PATH"
+# ── Detect OS and Python ───────────────────────────────────────────────────────
+OS_TYPE="linux"
+case "$OSTYPE" in
+  msys*|cygwin*|win32*) OS_TYPE="windows" ;;
+  darwin*)              OS_TYPE="mac" ;;
+  linux-gnu*|linux*)    OS_TYPE="linux" ;;
+  *)                    OS_TYPE="unknown" ;;
+esac
+
+PYTHON_CMD="python3"
+if [[ "$OS_TYPE" == "windows" ]]; then
+    PYTHON_CMD="python"
+fi
+
+if ! command -v "$PYTHON_CMD" &>/dev/null; then
+    echo "Python ($PYTHON_CMD) is not installed on this $OS_TYPE system." >> run.log
+    error "$PYTHON_CMD is required to parse the config file but was not found in PATH"
     exit 1
 fi
 
 # ── Parse config with Python (handles both YAML and JSON) ─────────────────────
 # Outputs KEY=VALUE pairs that are eval'd into the shell.
 # Falls back to json stdlib if PyYAML is not installed and the file is YAML.
-PARSED=$(python3 - "$CONFIG_FILE" <<'PYEOF'
+PARSED=$("$PYTHON_CMD" - "$CONFIG_FILE" <<'PYEOF'
 import sys, os, json
 
 config_path = sys.argv[1]
