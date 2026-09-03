@@ -20,7 +20,10 @@ set -euo pipefail
 RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; NC='\033[0m'
 info()  { echo -e "${GREEN}[hermes]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[hermes]${NC} $*"; }
-error() { echo -e "${RED}[hermes]${NC} $*" >&2; }
+error() {
+    echo -e "${RED}[hermes]${NC} $*" >&2
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [ERROR] $*" >> run.log
+}
 step()  { echo -e "${CYAN}[hermes]${NC} $*"; }
 
 # ── --init: write a template config and exit ───────────────────────────────────
@@ -261,6 +264,7 @@ PYEOF
 
 if [[ $? -ne 0 ]]; then
     # Python already printed the error
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [ERROR] Python configuration parsing failed." >> run.log
     exit 1
 fi
 
