@@ -113,4 +113,4 @@ docker:
   data_dir: "./hermes-data"
 
   # Docker image to use. Override only if you need a specific Python version.
-  image: "python:3.12-slim"
+  image: "hermes-agent"

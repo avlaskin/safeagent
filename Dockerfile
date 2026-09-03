@@ -17,7 +17,7 @@ COPY requirements.txt .
 # Install python dependencies and hermes-agent with extras
 RUN pip install --quiet --upgrade pip \
     && pip install --quiet -r requirements.txt \
-    && pip install --quiet "hermes-agent[messaging,google,cli,web]" playwright
+    && pip install --quiet "hermes-agent[messaging,google,anthropic,cli,web]" playwright
 
 # Install Chromium browser for web tools
 RUN DEBIAN_FRONTEND=noninteractive python -m playwright install --with-deps chromium
